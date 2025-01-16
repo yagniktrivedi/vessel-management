@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Petrochem Shipment Plan</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      /* Styles for form layout and design */
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        max-width: 800px;
+        margin: auto;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 24px;
+      }
+
+      form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .full-width {
+        grid-column: span 2;
+      }
+
+      #lineButtons {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        justify-content: center;
+        margin-bottom: 20px;
+        grid-column: span 2;
+      }
+
+      .line-button-row {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 10px;
+      }
+
+      .terminal-title {
+        text-align: center;
+        font-weight: bold;
+        font-size: 18px;
+        margin-bottom: 5px;
+      }
+
+      .line-button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      .line-button.selected {
+        background-color: #0056b3;
+      }
+
+      .line-button:hover {
+        background-color: #0056b3;
+      }
+
+      .sequence-container {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        position: relative;
+      }
+
+      .sequence-container h3 {
+        margin: 0;
+        display: inline-block;
+      }
+
+      .sequence-container button {
+        float: right;
+        margin-top: 0;
+      }
+
+      .sequence {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .product-field {
+        margin-bottom: 10px;
+      }
+
+      .error {
+        color: red;
+        font-size: 12px;
+      }
+
+      .delete-sequence {
+        background-color: #ff4d4d;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 5px;
+      }
+
+      .delete-sequence:hover {
+        background-color: #e60000;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="app">
+      <h1>Petrochem Shipment Plan</h1>
+
+      <form id="shipmentForm">
+        <div>
+          <label for="shipName">Ship Name:</label>
+          <input type="text" id="shipName" name="shipName" required />
+        </div>
+
+        <div>
+          <label for="arrivalDate">Arrival Date:</label>
+          <input type="date" id="arrivalDate" name="arrivalDate" required />
+        </div>
+
+        <div class="full-width">
+          <label for="numProducts">Number of Products:</label>
+          <input
+            type="number"
+            id="numProducts"
+            name="numProducts"
+            min="1"
+            required
+          />
+        </div>
+
+        <div id="productFields" class="full-width"></div>
+
+        <div id="lineButtons"></div>
+
+        <div id="sequencesContainer" class="full-width"></div>
+
+        <button type="button" onclick="generateJSON()">
+          Generate JSON Data
+        </button>
+        <div id="error-message" class="error full-width"></div>
+      </form>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+      document.addEventListener(true, function () {
+        console.log("mousemove");
+        const arrivalDateInput = document.getElementById("arrivalDate");
+        const numProductsInput = document.getElementById("numProducts");
+        const productFields = document.getElementById("productFields");
+        const sequencesContainer =
+          document.getElementById("sequencesContainer");
+        const lineButtonsContainer = document.getElementById("lineButtons");
+        const errorMessage = document.getElementById("error-message");
+
+        const terminals = ["PTF", "PME"];
+        const terminalBerths = {
+          PTF: [
+            "PTF Line 5",
+            "PTF Line 6",
+            "PTF Line 7",
+            "PTF Line 8",
+            "PTF Line 9",
+            "PTF Line 10",
+            "PTF Line 11",
+            "PTF Line 12",
+          ],
+          PME: ["PME Line 1", "PME Line 2", "PME Line 3", "PME Line 4"],
+        };
+        const terminalTanks = {
+          PTF: [
+            "TK-401",
+            "TK-402",
+            "TK-403",
+            "TK-404",
+            "TK-405",
+            "TK-406",
+            "TK-501",
+            "TK-502",
+            "TK-503",
+            "TK-504",
+            "TK-505",
+            "TK-506",
+            "TK-507",
+            "TK-508",
+            "TK-601",
+            "TK-602",
+            "TK-603",
+            "TK-604",
+            "TK-605",
+            "TK-606",
+            "TK-701",
+            "TK-702",
+            "TK-703",
+            "TK-704",
+            "TK-801",
+            "TK-802",
+            "TK-803",
+            "TK-804",
+            "TK-805",
+            "TK-806",
+          ],
+          PME: [
+            "TK-101",
+            "TK-102",
+            "TK-103",
+            "TK-104",
+            "TK-105",
+            "TK-106",
+            "TK-201",
+            "TK-202",
+            "TK-203",
+            "TK-204",
+            "TK-205",
+            "TK-206",
+            "TK-301",
+            "TK-302",
+            "TK-303",
+            "TK-304",
+            "TK-305",
+            "TK-306",
+            "TK-307",
+            "TK-308",
+            "TK-309",
+            "TK-310",
+          ],
+        };
+
+        const terminalMapping = {
+          1: "PME",
+          2: "PME",
+          3: "PME",
+          4: "PME", // Lines 1-4 for PME
+          5: "PTF",
+          6: "PTF",
+          7: "PTF",
+          8: "PTF",
+          9: "PTF",
+          10: "PTF",
+          11: "PTF",
+          12: "PTF", // Lines 5-12 for PTF
+        };
+
+        // Set default date
+        const today = new Date().toISOString().split("T")[0];
+        arrivalDateInput.value = today;
+
+        // Generate line buttons grouped by terminal and display terminal name
+        const createLineButtons = () => {
+          terminals.forEach((terminal) => {
+            // Add terminal title
+            const terminalTitle = document.createElement("div");
+            terminalTitle.className = "terminal-title";
+            terminalTitle.textContent = `${terminal} Terminal Lines`;
+
+            // Create row for line buttons
+            const rowDiv = document.createElement("div");
+            rowDiv.className = "line-button-row";
+
+            terminalBerths[terminal].forEach((line, index) => {
+              const lineNumber = parseInt(line.match(/\d+/)[0]);
+              const button = document.createElement("button");
+              button.type = "button";
+              button.className = "line-button";
+              button.textContent = line;
+              button.setAttribute("data-line", lineNumber);
+              button.addEventListener("click", function () {
+                if (validateProductFields()) {
+                  this.classList.toggle("selected");
+                  if (this.classList.contains("selected")) {
+                    addSequenceContainer(lineNumber);
+                  } else {
+                    removeSequenceContainer(lineNumber);
+                  }
+                } else {
+                  errorMessage.textContent =
+                    "Please fill all product names and quantities before selecting a line.";
+                }
+              });
+              rowDiv.appendChild(button);
+            });
+
+            // Append terminal title and buttons to the container
+            lineButtonsContainer.appendChild(terminalTitle);
+            lineButtonsContainer.appendChild(rowDiv);
+          });
+        };
+
+        createLineButtons();
+
+        // Event listener for number of products input
+        numProductsInput.addEventListener("change", function () {
+          updateProductFields(numProductsInput.value);
+        });
+
+        // Update product fields based on number of products
+        function updateProductFields(num) {
+          productFields.innerHTML = "";
+          for (let i = 1; i <= num; i++) {
+            const div = document.createElement("div");
+            div.className = "product-field";
+            div.innerHTML = `
+                        <label for="productName${i}">Product Name ${i}:</label>
+                        <input type="text" id="productName${i}" name="productName${i}" required>
+                        <label for="quantity${i}">Quantity in MT:</label>
+                        <input type="number" id="quantity${i}" name="quantity${i}" min="0" required>
+                    `;
+            productFields.appendChild(div);
+          }
+        }
+
+        // Add sequence container (with default Sequence 1)
+        function addSequenceContainer(lineNumber) {
+          const terminal = terminalMapping[lineNumber];
+          const tanks = terminalTanks[terminal];
+          const sequenceContainer = document.createElement("div");
+          sequenceContainer.classList.add("sequence-container");
+          sequenceContainer.setAttribute("id", `line${lineNumber}Container`);
+          sequenceContainer.innerHTML = `
+                    <h3>Line ${lineNumber} (Terminal: ${terminal})</h3>
+                    <button type="button" onclick="addSequence(${lineNumber})">Add Sequence</button>
+                    <div class="sequence">
+                        <label for="tank${lineNumber}Seq1">Tank Number:</label>
+                        <select id="tank${lineNumber}Seq1" name="tank${lineNumber}Seq1">
+                            ${tanks
+                              .map(
+                                (tank) =>
+                                  `<option value="${tank}">${tank}</option>`
+                              )
+                              .join("")}
+                        </select>
+                        <label for="product${lineNumber}Seq1">Product Name:</label>
+                        <select id="product${lineNumber}Seq1" name="product${lineNumber}Seq1">
+                            ${getProductOptions()}
+                        </select>
+                        <label for="volume${lineNumber}Seq1">Volume in MT:</label>
+                        <input type="number" id="volume${lineNumber}Seq1" name="volume${lineNumber}Seq1" min="0" required>
+                    </div>
+                `;
+          sequencesContainer.appendChild(sequenceContainer);
+        }
+
+        // Get product options from product fields
+        function getProductOptions() {
+          const products = [];
+          for (let i = 1; i <= numProductsInput.value; i++) {
+            const productName = document.getElementById(
+              `productName${i}`
+            ).value;
+            products.push(
+              `<option value="${productName}">${productName}</option>`
+            );
+          }
+          return products.join("");
+        }
+
+        // Add additional sequence fields (with delete button from the second sequence)
+        window.addSequence = function (lineNumber) {
+          const sequencesDiv = document.getElementById(
+            `line${lineNumber}Container`
+          );
+          const sequenceCount =
+            sequencesDiv.getElementsByClassName("sequence").length + 1;
+          const terminal = terminalMapping[lineNumber];
+          const tanks = terminalTanks[terminal];
+          const sequenceDiv = document.createElement("div");
+          sequenceDiv.classList.add("sequence");
+          sequenceDiv.innerHTML = `
+                    <label for="tank${lineNumber}Seq${sequenceCount}">Tank Number:</label>
+                    <select id="tank${lineNumber}Seq${sequenceCount}" name="tank${lineNumber}Seq${sequenceCount}">
+                        ${tanks
+                          .map(
+                            (tank) => `<option value="${tank}">${tank}</option>`
+                          )
+                          .join("")}
+                    </select>
+                    <label for="product${lineNumber}Seq${sequenceCount}">Product Name:</label>
+                    <select id="product${lineNumber}Seq${sequenceCount}" name="product${lineNumber}Seq${sequenceCount}">
+                        ${getProductOptions()}
+                    </select>
+                    <label for="volume${lineNumber}Seq${sequenceCount}">Volume in MT:</label>
+                    <input type="number" id="volume${lineNumber}Seq${sequenceCount}" name="volume${lineNumber}Seq${sequenceCount}" min="0" required>
+                    ${
+                      sequenceCount > 1
+                        ? '<button type="button" class="delete-sequence" onclick="deleteSequence(this)">Delete Sequence</button>'
+                        : ""
+                    }
+                `;
+          sequencesDiv.appendChild(sequenceDiv);
+        };
+
+        // Remove sequence container
+        function removeSequenceContainer(lineNumber) {
+          const sequenceContainer = document.getElementById(
+            `line${lineNumber}Container`
+          );
+          if (sequenceContainer) {
+            sequencesContainer.removeChild(sequenceContainer);
+          }
+        }
+
+        // Delete individual sequence
+        window.deleteSequence = function (button) {
+          button.parentElement.remove();
+        };
+
+        // Validate form data and ensure all product fields are filled before selecting lines
+        function validateProductFields() {
+          const numProducts = numProductsInput.value;
+          for (let i = 1; i <= numProducts; i++) {
+            const productName = document.getElementById(
+              `productName${i}`
+            ).value;
+            const quantity = parseFloat(
+              document.getElementById(`quantity${i}`).value
+            );
+
+            if (!productName || quantity <= 0) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        // Validate form data
+        function validateForm() {
+          errorMessage.innerHTML = ""; // Clear previous error messages
+
+          // Check if product names and quantities are filled
+          const numProducts = numProductsInput.value;
+          let totalProductQuantity = 0;
+
+          for (let i = 1; i <= numProducts; i++) {
+            const productName = document.getElementById(
+              `productName${i}`
+            ).value;
+            const quantity = parseFloat(
+              document.getElementById(`quantity${i}`).value
+            );
+
+            if (!productName || quantity <= 0) {
+              errorMessage.textContent = `Error: Please fill in all product names and valid quantities.`;
+              return false;
+            }
+            totalProductQuantity += quantity;
+          }
+
+          // Validate line sequences volume
+          let totalSequenceVolume = 0;
+          document
+            .querySelectorAll(".sequence-container")
+            .forEach((container) => {
+              container.querySelectorAll(".sequence").forEach((seq) => {
+                totalSequenceVolume +=
+                  parseFloat(seq.querySelector(`[name^="volume"]`).value) || 0;
+              });
+            });
+
+          if (totalProductQuantity !== totalSequenceVolume) {
+            errorMessage.textContent = `Error: Total product quantity (${totalProductQuantity} MT) does not match total volume across sequences (${totalSequenceVolume} MT).`;
+            return false;
+          }
+
+          return true;
+        }
+
+        // Generate JSON Data
+        window.generateJSON = function () {
+          if (!validateForm()) {
+            return; // Prevent form submission if validation fails
+          }
+
+          const formData = {
+            shipName: document.getElementById("shipName").value,
+            arrivalDate: document.getElementById("arrivalDate").value,
+            products: [],
+          };
+
+          // Collect product details
+          for (let i = 1; i <= numProductsInput.value; i++) {
+            formData.products.push({
+              name: document.getElementById(`productName${i}`).value,
+              quantity: document.getElementById(`quantity${i}`).value,
+            });
+          }
+
+          // Collect line sequences
+          formData.lines = [];
+          document
+            .querySelectorAll(".sequence-container")
+            .forEach((container) => {
+              const lineNumber = container.id.match(/\d+/)[0];
+              const terminal = terminalMapping[lineNumber];
+              const sequences = [];
+              container.querySelectorAll(".sequence").forEach((seq, index) => {
+                sequences.push({
+                  sequenceNumber: index + 1,
+                  terminal: terminal,
+                  tank: seq.querySelector(`[name^="tank"]`).value,
+                  product: seq.querySelector(`[name^="product"]`).value,
+                  volume: seq.querySelector(`[name^="volume"]`).value,
+                });
+              });
+              formData.lines.push({ line: lineNumber, sequences: sequences });
+            });
+
+          const jsonData = JSON.stringify(formData, null, 2);
+          console.log(jsonData); // Optional: Debug JSON in console
+
+          // Save JSON to localStorage
+          localStorage.setItem("diagramData", jsonData);
+
+          // Redirect to gojs.html
+          window.location.href = "gojs.html";
+        };
+      });
+    </script>
+  </body>
+</html>
