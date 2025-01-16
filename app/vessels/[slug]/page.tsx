@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 import "./styles1.css";
 import { text } from "stream/consumers";
@@ -331,12 +332,12 @@ export default function CreateTransferPlanPage() {
                   key={lineNum}
                 >
                   <h3>Line {lineNum} (Terminal : PTF)</h3>
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setPtfSeq((prevState) => prevState + 1)}
                   >
                     Add Sequence
-                  </button>
+                  </Button>
                   {renderSeq(lineNum)}
                 </div>
               );
@@ -351,20 +352,20 @@ export default function CreateTransferPlanPage() {
                   key={lineNum}
                 >
                   <h3>Line {lineNum} (Terminal : PME)</h3>
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setPmeSeq((prevState) => prevState + 1)}
                   >
                     Add Sequence
-                  </button>
+                  </Button>
                   {renderSeqPME(lineNum)}
                 </div>
               );
             })
           : null}
-        <button type="button" onClick={generateJSON}>
+        <Button type="button" onClick={generateJSON}>
           Generate Transfer Diagram
-        </button>
+        </Button>
       </div>
     </>
   );
